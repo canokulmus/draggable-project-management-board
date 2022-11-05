@@ -1,3 +1,7 @@
+body {
+    padding-bottom: 50px !important;
+}
+
 .add-task-button {
     position: absolute;
     width: 40px;
@@ -28,4 +32,20 @@
 .edit-task-button:hover {
     background-color: #16181d;
     transition: .5s;
+}
+
+.hover-white {
+    transition: .5s;
+}
+
+.hover-white:hover {
+    color: white;
+}
+
+.task-title {
+    transition: .3s;
+}
+
+.task-title:hover {
+    background-color: #23242d !important;
 }

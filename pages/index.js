@@ -2,20 +2,121 @@ import React, { useState } from 'react'
 import Head from 'next/head'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import { Flex, Heading, Text } from '@chakra-ui/react'
+import { Flex, Heading, Text, useDisclosure, } from '@chakra-ui/react'
 import { DragDropContext } from 'react-beautiful-dnd'
 import { useAtom } from 'jotai'
 import { tasks } from '../atom/task'
+import ModalOne from '../src/ModalOne'
+import DetailsModal from '../src/DetailsModal'
 //dynamic imports
 const Column = dynamic(() => import('../src/Column'), { ssr: false })
 
 
-
-export default function Home() {
+const Home = () => {
 
   const [taskState, setTaskState] = useAtom(tasks);
+  const [mode, setMode] = useState(false); // 0 = add, 1 = edit
+  const [currentColumn, setCurrentColumn] = useState(null);
+  const [currentTask, setCurrentTask] = useState(emptyTask);
+  //modal
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  //second modal
+  const { isOpen: isOpen2, onOpen: onOpen2, onClose: onClose2 } = useDisclosure()
 
 
+  const openAddModal = (column) => {
+    setMode(0);
+    setCurrentColumn(column);
+    onOpen();
+  }
+  const openEditModal = (task, column) => {
+    setMode(1);
+    setCurrentTask(task);
+    setCurrentColumn(column);
+    onOpen();
+  }
+
+  const openDetailsModal = (task, column) => {
+    setCurrentTask(task);
+    setCurrentColumn(column);
+    onOpen2();
+  }
+
+  const handleEditTask = () => {
+    const newState = {
+      ...taskState,
+      tasks: {
+        ...taskState.tasks,
+        [currentTask.id]: { ...currentTask },
+      },
+    }
+
+    setTaskState(newState);
+    setCurrentColumn(null)
+    setCurrentTask(emptyTask);
+    onClose();
+  }
+
+  const deleteTask = (id) => {
+
+    const newState = {
+      ...taskState,
+      tasks: {
+        ...taskState.tasks,
+      },
+      columns: {
+        ...taskState.columns,
+        [currentColumn.id]: {
+          ...currentColumn,
+          taskIds: currentColumn.taskIds.filter((taskId) => taskId !== id),
+        },
+      },
+    }
+
+    delete newState.tasks[id];
+    console.log(newState);
+    setTaskState(newState);
+    onClose();
+  }
+
+  const handleAddTask = () => {
+
+    //create unique id and check if it is unique
+    const id = Math.floor(Math.random() * 10000) + 1;
+    const isUnique = taskState.tasks[id] ? false : true;
+
+    while (!isUnique) {
+      id = Math.floor(Math.random() * 10000) + 1;
+      isUnique = taskState.tasks[id] ? false : true;
+    }
+
+    //set current task id
+    setCurrentTask({ ...currentTask, id: id });
+
+    const newState = {
+      ...taskState,
+      tasks: {
+        ...taskState.tasks,
+        [id]: { ...currentTask, id: id },
+      },
+      columns: {
+        ...taskState.columns,
+        [currentColumn.id]: {
+          ...currentColumn,
+          taskIds: [...currentColumn.taskIds, id], //add new task id to column
+        }
+      }
+    }
+    setTaskState(newState);
+
+
+    setCurrentColumn(null)
+    setCurrentTask(emptyTask);
+    onClose();
+    setMode(0);
+  }
+
+  //cases for drag and drop
   const onDragEnd = (result) => {
     const { destination, source } = result
 
@@ -53,7 +154,6 @@ export default function Home() {
     const sourceCol = taskState.columns[source.droppableId];
     const destinationCol = taskState.columns[destination.droppableId];
 
-
     const startTaskIds = Array.from(sourceCol.taskIds);
     const [removed] = startTaskIds.splice(source.index, 1);
     const newStartCol = {
@@ -79,44 +179,83 @@ export default function Home() {
 
     setTaskState(newState);
 
-
   }
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Flex flexDir={"column"}
-        bg={"main-bg"}
-        minH={"100vh"}
-        w={"full"}
-        color={"white-text"}
-        pb="rem"
-      >
-        <Flex py={"3rem"} flexDir={"column"} align={"center"}>
-          <Heading fontSize={"3xl"} fontWeight={600}>
-            Draggable Project Management Board
-          </Heading>
+    <>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Flex flexDir={"column"}
+          minH={"100vh"}
+          w={"full"}
+          color={"white-text"}
+        >
+          <Flex py={"3rem"} flexDir={"column"} align={"center"}>
+            <Heading fontSize={"3xl"} fontWeight={600} textAlign={"center"}>
+              Draggable Project Management Board
+            </Heading>
+            <Text fontSize={"20px"} mt="20px" fontWeight={600} color="subtle-text">
+            </Text>
+          </Flex>
 
-          <Text fontSize={"20px"} mt="20px" fontWeight={600} color="subtle-text">
-            {/* {"(If you refresh the page, your changes will remain the same)"} */}
-          </Text>
+          <Flex justify={"center"} px={"4rem"} pb={10} wrap="wrap">
+            {taskState.columnOrder.map((columnId) => {
+              const column = taskState.columns[columnId]
+              const tasks = column.taskIds.map(taskId => taskState.tasks[taskId])
+              return <Column
+                key={column.id}
+                column={column}
+                tasks={tasks}
+                taskState={taskState}
+                setTaskState={setTaskState}
+                isOpen={isOpen}
+                onOpen={onOpen}
+                onClose={onClose}
+                onOpen2={onOpen2}
+                openAddModal={openAddModal}
+                openEditModal={openEditModal}
+                openDetailsModal={openDetailsModal}
+              />
+            })}
+          </Flex>
         </Flex>
+      </DragDropContext>
 
-        <Flex justify={"space-around"} px={"4rem"} wrap="wrap">
+      <ModalOne
+        isOpen={isOpen}
+        onClose={() => {
+          setCurrentTask(emptyTask);
+          setCurrentColumn(null);
+          setMode(0);
+          onClose();
+        }}
+        handleAddTask={handleAddTask}
+        currentColumn={currentColumn}
+        mode={mode}
+        currentTask={currentTask}
+        setCurrentTask={setCurrentTask}
+        handleEditTask={handleEditTask}
+        deleteTask={deleteTask}
+      />
 
-          {taskState.columnOrder.map((columnId) => {
-            const column = taskState.columns[columnId]
-            const tasks = column.taskIds.map(taskId => taskState.tasks[taskId])
-
-            return <Column
-              key={column.id}
-              column={column}
-              tasks={tasks}
-              taskState={taskState}
-              setTaskState={setTaskState}
-            />
-          })}
-        </Flex>
-      </Flex>
-    </DragDropContext>
+      <DetailsModal
+        isOpen2={isOpen2}
+        onClose2={() => {
+          setCurrentTask(emptyTask);
+          onClose2();
+        }}
+        openEditModal={openEditModal}
+        currentTask={currentTask}
+        currentColumn={currentColumn}
+        deleteTask={deleteTask}
+      />
+    </>
   )
 }
+
+const emptyTask = {
+  title: "",
+  notes: "",
+}
+
+export default Home;
+

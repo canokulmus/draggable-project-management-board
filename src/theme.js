@@ -11,7 +11,9 @@ const colors = {
     "column-header-bg": "#1A1D23",
 
     "card-bg": "#242731",
-    "card-border": "#2D313E"
+    "card-border": "#2D313E",
+    "light-orange": "#F8B195",
+    "yellow": "#F7DB4F",
 };
 
 const fonts = {
